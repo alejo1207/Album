@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Álbum Fotográfico</title>
+  <meta name="description" content="Álbum fotográfico responsive con filtrado, búsqueda y lightbox." />
+  <style>
+    :root{
+      --bg: #0f172a;           /* slate-900 */
+      --panel: #111827;        /* gray-900 */
+      --text: #e5e7eb;         /* gray-200 */
+      --muted: #9ca3af;        /* gray-400 */
+      --brand: #38bdf8;        /* sky-400 */
+      --brand-2: #22d3ee;      /* cyan-400 */
+      --chip: #1f2937;         /* gray-800 */
+      --chip-active: #075985;  /* sky-800 */
+      --shadow: 0 10px 30px rgba(0,0,0,.35);
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0; background: radial-gradient(1200px 600px at 10% -10%, rgba(34,211,238,.10), transparent 40%),
+                                  radial-gradient(1200px 600px at 90% 10%, rgba(56,189,248,.10), transparent 40%),
+                                  var(--bg);
+      color:var(--text); font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, "Helvetica Neue", Arial, "Apple Color Emoji", "Segoe UI Emoji";
+    }
+    a{color:inherit}
+    .container{max-width:1200px; padding:24px 20px 80px; margin:0 auto}
+
+    /* Header */
+    .header{
+      position:sticky; top:0; z-index:20; backdrop-filter: blur(6px);
+      background: linear-gradient(to bottom, rgba(15,23,42,.95), rgba(15,23,42,.75) 60%, transparent);
+    }
+    .header-inner{display:flex; gap:16px; align-items:center; justify-content:space-between; padding:16px 20px}
+    .title{font-size:clamp(20px, 3vw, 32px); font-weight:800; letter-spacing:.2px}
+    .title span{background: linear-gradient(90deg, var(--brand), var(--brand-2)); -webkit-background-clip:text; background-clip:text; color:transparent}
+
+    /* Controls */
+    .controls{display:flex; flex-wrap:wrap; gap:10px; align-items:center}
+    .search{position:relative}
+    .search input{
+      width:min(64vw, 320px); padding:12px 40px 12px 14px; border-radius:12px; border:1px solid #1f2937; background:#0b1220; color:var(--text);
+      outline:none; box-shadow: inset 0 0 0 1px rgba(255,255,255,.02);
+    }
+    .search svg{position:absolute; right:12px; top:50%; transform:translateY(-50%); opacity:.7}
+    .chips{display:flex; flex-wrap:wrap; gap:8px}
+    .chip{border:1px solid #1f2937; background:var(--chip); color:var(--text); padding:8px 12px; border-radius:999px; cursor:pointer; font-size:14px}
+    .chip[aria-pressed="true"]{background:var(--chip-active); border-color:#0ea5e9}
+    .count{font-size:13px; color:var(--muted)}
+
+    /* Masonry gallery using CSS columns */
+    .gallery{column-gap:16px}
+    @media (min-width: 480px){.gallery{column-count:2}}
+    @media (min-width: 900px){.gallery{column-count:3}}
+    @media (min-width: 1200px){.gallery{column-count:4}}
+
+    .item{break-inside:avoid; margin:0 0 16px; display:block; border-radius:16px; overflow:hidden; background:#0b1220; border:1px solid #1f2937; box-shadow:var(--shadow)}
+    .item figure{margin:0}
+    .item img{width:100%; height:auto; display:block; filter:saturate(1.02); opacity:0; transition:opacity .4s ease}
+    .item img.loaded{opacity:1}
+    .caption{padding:10px 12px; font-size:14px; color:var(--muted); display:flex; justify-content:space-between; gap:10px; align-items:center}
+    .tags{display:flex; gap:6px; flex-wrap:wrap}
+    .tag{font-size:12px; padding:3px 8px; border:1px solid #1f2937; border-radius:999px; color:#93c5fd}
+    .visually-hidden{position:absolute!important; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0}
+
+    /* Lightbox */
+    .lightbox{position:fixed; inset:0; z-index:50; display:none; align-items:center; justify-content:center; background: rgba(2,6,23,.85)}
+    .lightbox.open{display:flex}
+    .lb-inner{max-width:min(92vw, 1200px); max-height:86vh; display:grid; grid-template-rows:auto 1fr auto; gap:10px}
+    .lb-toolbar{display:flex; align-items:center; justify-content:space-between; gap:10px}
+    .lb-title{font-weight:600}
+    .lb-actions{display:flex; gap:8px}
+    .btn{display:inline-flex; align-items:center; gap:6px; padding:8px 12px; background:#0b1220; border:1px solid #1f2937; border-radius:10px; cursor:pointer}
+    .btn:hover{border-color:#334155}
+    .btn.primary{background: #0c172a; border-color:#0ea5e9}
+    .lb-stage{position:relative; display:grid; place-items:center; background:#0b1220; border:1px solid #1f2937; border-radius:14px; overflow:hidden}
+    .lb-stage img{max-width:100%; max-height:80vh; width:auto; height:auto}
+    .nav{position:absolute; top:50%; transform:translateY(-50%); display:flex; align-items:center; justify-content:center; width:44px; height:44px; border-radius:999px; background:rgba(2,6,23,.6); border:1px solid #1f2937; cursor:pointer}
+    .nav:hover{background:rgba(2,6,23,.8)}
+    .nav.prev{left:10px}
+    .nav.next{right:10px}
+    .lb-footer{display:flex; justify-content:space-between; align-items:center; gap:8px; color:var(--muted)}
+
+    /* Floating to-top button */
+    .to-top{position:fixed; right:18px; bottom:18px; z-index:30; display:none}
+    .to-top.show{display:inline-flex}
+
+    /* No-JS notice */
+    .nojs{margin:12px 0; padding:12px; background:#7c2d12; border:1px solid #b45309; border-radius:10px}
+
+  </style>
+</head>
+<body>
+
+  <!-- Encabezado / Controles -->
+  <div class="header">
+    <div class="header-inner container" role="banner">
+      <div class="title" aria-label="Título del sitio">
+        <span>Álbum</span> Fotográfico
+      </div>
+      <div class="controls" role="search" aria-label="Búsqueda y filtros">
+        <div class="search">
+          <label class="visually-hidden" for="q">Buscar</label>
+          <input id="q" type="search" placeholder="Buscar por título o etiqueta…" autocomplete="off" />
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M21 21l-4.35-4.35M10.5 18a7.5 7.5 0 1 1 0-15 7.5 7.5 0 0 1 0 15Z" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+        </div>
+        <div class="chips" id="chips" role="toolbar" aria-label="Filtros de categoría">
+          <!-- Se autogeneran -->
+        </div>
+        <div class="count" id="count" aria-live="polite"></div>
+      </div>
+    </div>
+  </div>
+
+  <main class="container" id="main">
+    <noscript>
+      <div class="nojs">Este álbum usa un poco de JavaScript para el filtrado y el visor. Activa JavaScript para una mejor experiencia.</div>
+    </noscript>
+
+    <!-- Galería -->
+    <section class="gallery" id="gallery" aria-label="Galería de fotos">
+      <!-- Se llena desde JS para que solo edites el arreglo IMAGENES -->
+    </section>
+  </main>
+
+  <!-- Lightbox / Visor -->
+  <div class="lightbox" id="lightbox" aria-modal="true" role="dialog" aria-label="Visor de imagen">
+    <div class="lb-inner">
+      <div class="lb-toolbar">
+        <div class="lb-title" id="lbTitle">&nbsp;</div>
+        <div class="lb-actions">
+          <button class="btn" id="btnClose" title="Cerrar (Esc)">Cerrar ⨉</button>
+          <a class="btn primary" id="btnDownload" href="#" download>Descargar ⤓</a>
+        </div>
+      </div>
+      <div class="lb-stage">
+        <button class="nav prev" id="prev" aria-label="Anterior">◀</button>
+        <img id="lbImg" alt="" />
+        <button class="nav next" id="next" aria-label="Siguiente">▶</button>
+      </div>
+      <div class="lb-footer">
+        <div id="lbMeta"></div>
+        <div id="lbIndex"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Botón volver arriba -->
+  <button class="btn to-top" id="toTop" aria-label="Volver arriba">↑ Arriba</button>
+
+  <script>
+    /*
+     * 👉 Cómo usar este archivo
+     * 1) Reemplaza el arreglo IMAGENES con tus fotos. Puedes usar rutas locales (por ej. "img/boda01.jpg")
+     *    o URLs externas. Cada item: { src, alt, titulo, etiquetas: [..] }
+     * 2) (Opcional) Cambia las categorías predefinidas en CATEGORIAS.
+     * 3) Sube este archivo (y tu carpeta img/) a GitHub Pages.
+     */
+
+    const IMAGENES = [
+      // Ejemplos (Unsplash). Reemplaza por tus fotos.
+      { src: "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?w=1400", alt:"Montañas al amanecer", titulo:"Amanecer en la sierra", etiquetas:["Naturaleza","Viajes"] },
+      { src: "https://images.unsplash.com/photo-1520975916090-3105956dac38?w=1400", alt:"Pareja en boda", titulo:"Nuestra ceremonia", etiquetas:["Boda","Familia"] },
+      { src: "https://images.unsplash.com/photo-1470770903676-69b98201ea1c?w=1400", alt:"Playa con palmeras", titulo:"Tarde en la playa", etiquetas:["Viajes","Naturaleza"] },
+      { src: "https://images.unsplash.com/photo-1441123285228-1448e608f3d5?w=1400", alt:"Niña riendo", titulo:"Sobrina feliz", etiquetas:["Familia","Retratos"] },
+      { src: "https://images.unsplash.com/photo-1469474968028-56623f02e42e?w=1400", alt:"Bosque con neblina", titulo:"Sendero místico", etiquetas:["Naturaleza"] },
+      { src: "https://images.unsplash.com/photo-1519681393784-d120267933ba?w=1400", alt:"Cámara vintage", titulo:"Mi primera cámara", etiquetas:["Objetos"] },
+      { src: "https://images.unsplash.com/photo-1504198266285-165a3c7bb7b3?w=1400", alt:"Ciudad nocturna", titulo:"Ciudad en luces", etiquetas:["Viajes","Urbano"] },
+      { src: "https://images.unsplash.com/photo-1504197885-609741792ce7?w=1400", alt:"Mesa familiar", titulo:"Cena del domingo", etiquetas:["Familia"] },
+      { src: "https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?w=1400", alt:"Novia con ramo", titulo:"Sesión pre-boda", etiquetas:["Boda","Retratos"] },
+      { src: "https://images.unsplash.com/photo-1501785888041-af3ef285b470?w=1400", alt:"Montaña nevada", titulo:"Cima fría", etiquetas:["Naturaleza","Viajes"] },
+      { src: "https://images.unsplash.com/photo-1491553895911-0055eca6402d?w=1400", alt:"Atardecer urbano", titulo:"Azotea al atardecer", etiquetas:["Urbano","Viajes"] },
+      { src: "https://images.unsplash.com/photo-1469594800374-c0ee67ab9b91?w=1400", alt:"Flores de boda", titulo:"Detalles florales", etiquetas:["Boda","Objetos"] }
+    ];
+
+    const CATEGORIAS = ["Todas","Boda","Familia","Viajes","Naturaleza","Retratos","Urbano","Objetos"];
+
+    const $gallery = document.getElementById('gallery');
+    const $chips = document.getElementById('chips');
+    const $count = document.getElementById('count');
+    const $q = document.getElementById('q');
+    const $toTop = document.getElementById('toTop');
+
+    // Lightbox refs
+    const $lightbox = document.getElementById('lightbox');
+    const $lbImg = document.getElementById('lbImg');
+    const $lbTitle = document.getElementById('lbTitle');
+    const $lbMeta = document.getElementById('lbMeta');
+    const $lbIndex = document.getElementById('lbIndex');
+    const $btnClose = document.getElementById('btnClose');
+    const $btnDownload = document.getElementById('btnDownload');
+    const $prev = document.getElementById('prev');
+    const $next = document.getElementById('next');
+
+    let estado = { categoria: 'Todas', q: '', lista: IMAGENES.map((x,i)=>({...x, i})) };
+    let vistaActual = [];
+    let indiceLB = 0;
+
+    // Render chips
+    function renderChips(){
+      $chips.innerHTML = '';
+      CATEGORIAS.forEach(cat=>{
+        const b = document.createElement('button');
+        b.className = 'chip';
+        b.type = 'button';
+        b.textContent = cat;
+        b.setAttribute('aria-pressed', cat===estado.categoria ? 'true':'false');
+        b.addEventListener('click', ()=>{
+          estado.categoria = cat; renderChips(); aplicarFiltros();
+        });
+        $chips.appendChild(b);
+      });
+    }
+
+    // Lazy image loader
+    const io = new IntersectionObserver(entries=>{
+      entries.forEach(entry=>{
+        if(entry.isIntersecting){
+          const img = entry.target; img.src = img.dataset.src; img.onload = ()=>img.classList.add('loaded');
+          io.unobserve(img);
+        }
+      })
+    }, { rootMargin: '200px' });
+
+    // Render gallery by current filters
+    function renderGallery(lista){
+      $gallery.innerHTML = '';
+      lista.forEach(({src, alt, titulo, etiquetas, i})=>{
+        const a = document.createElement('a');
+        a.href = '#'; a.className = 'item'; a.dataset.index = i;
+        a.setAttribute('aria-label', `${titulo}. Abrir visor`);
+        a.addEventListener('click', (e)=>{ e.preventDefault(); abrirLB(i); });
+
+        const fig = document.createElement('figure');
+        const img = document.createElement('img');
+        img.alt = alt || titulo || '';
+        img.loading = 'lazy';
+        img.dataset.src = src;
+        io.observe(img);
+        fig.appendChild(img);
+
+        const cap = document.createElement('figcaption');
+        cap.className = 'caption';
+        const left = document.createElement('div'); left.textContent = titulo || '';
+        const right = document.createElement('div'); right.className = 'tags';
+        (etiquetas||[]).forEach(t=>{ const s = document.createElement('span'); s.className = 'tag'; s.textContent = t; right.appendChild(s); });
+        cap.appendChild(left); cap.appendChild(right);
+
+        a.appendChild(fig); a.appendChild(cap);
+        $gallery.appendChild(a);
+      });
+
+      $count.textContent = `${lista.length} foto${lista.length===1?'':'s'}`;
+      vistaActual = lista.map(x=>x.i);
+    }
+
+    function aplicarFiltros(){
+      const q = estado.q.trim().toLowerCase();
+      const cat = estado.categoria;
+      const filtrada = estado.lista.filter(({titulo, etiquetas})=>{
+        const coincideCat = (cat==='Todas') || (etiquetas||[]).includes(cat);
+        const cadena = `${titulo||''} ${(etiquetas||[]).join(' ')}`.toLowerCase();
+        const coincideQ = !q || cadena.includes(q);
+        return coincideCat && coincideQ;
+      });
+      renderGallery(filtrada);
+    }
+
+    // Lightbox
+    function abrirLB(indiceReal){
+      const i = vistaActual.indexOf(indiceReal);
+      indiceLB = i >= 0 ? i : 0;
+      actualizarLB();
+      $lightbox.classList.add('open');
+      document.body.style.overflow = 'hidden';
+    }
+    function cerrarLB(){
+      $lightbox.classList.remove('open');
+      document.body.style.overflow = '';
+    }
+    function actualizarLB(){
+      if(vistaActual.length===0){ cerrarLB(); return; }
+      const real = vistaActual[indiceLB];
+      const foto = estado.lista.find(x=>x.i===real);
+      if(!foto) return;
+      $lbImg.src = foto.src;
+      $lbImg.alt = foto.alt || foto.titulo || '';
+      $lbTitle.textContent = foto.titulo || '';
+      $lbMeta.textContent = (foto.etiquetas||[]).join(' · ');
+      $lbIndex.textContent = `${indiceLB+1} / ${vistaActual.length}`;
+      $btnDownload.href = foto.src;
+      // preload vecinos
+      const pre = [vistaActual[indiceLB-1], vistaActual[indiceLB+1]]
+        .map(idx => estado.lista.find(x=>x.i===idx)?.src).filter(Boolean);
+      pre.forEach(url=>{ const i = new Image(); i.src = url; });
+    }
+
+    $btnClose.addEventListener('click', cerrarLB);
+    $prev.addEventListener('click', ()=>{ indiceLB = (indiceLB-1+vistaActual.length)%vistaActual.length; actualizarLB(); });
+    $next.addEventListener('click', ()=>{ indiceLB = (indiceLB+1)%vistaActual.length; actualizarLB(); });
+    $lightbox.addEventListener('click', (e)=>{ if(e.target===e.currentTarget) cerrarLB(); });
+    document.addEventListener('keydown', (e)=>{
+      if(!$lightbox.classList.contains('open')) return;
+      if(e.key==='Escape') cerrarLB();
+      if(e.key==='ArrowLeft') $prev.click();
+      if(e.key==='ArrowRight') $next.click();
+    });
+
+    // Search & UI behaviors
+    $q.addEventListener('input', (e)=>{ estado.q = e.target.value; aplicarFiltros(); });
+
+    window.addEventListener('scroll', ()=>{
+      if(window.scrollY > 400) $toTop.classList.add('show'); else $toTop.classList.remove('show');
+    });
+    $toTop.addEventListener('click', ()=> window.scrollTo({top:0, behavior:'smooth'}));
+
+    // Init
+    renderChips();
+    aplicarFiltros();
+  </script>
+
+  <!--
+   █ Consejos
+   - Para usar imágenes locales, crea una carpeta /img y guarda tus archivos allí.
+     Luego cambia src: "img/nombre.jpg" en cada entrada del arreglo IMAGENES.
+   - Cambia el título grande en .title si quieres personalizar (por ejemplo: "Álbum Alexandra & Alejandro").
+   - ¿Quieres portada/hero? Agrega una <section> antes de la galería con un banner.
+   - ¿Quieres proteger enlaces de descarga? En un sitio estático no es posible ocultar la URL real.
+  -->
+</body>
+</html>
