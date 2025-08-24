@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Álbum Fotográfico (Fotos + Videos)</title>
+  <meta name="description" content="Álbum responsive con búsqueda, filtros y lightbox para fotos y videos." />
+  <style>
+    :root{
+      --bg: #0f172a;
+      --panel: #111827;
+      --text: #e5e7eb;
+      --muted: #9ca3af;
+      --brand: #38bdf8;
+      --brand-2: #22d3ee;
+      --chip: #1f2937;
+      --chip-active: #075985;
+      --shadow: 0 10px 30px rgba(0,0,0,.35);
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0; background: radial-gradient(1200px 600px at 10% -10%, rgba(34,211,238,.10), transparent 40%),
+                                  radial-gradient(1200px 600px at 90% 10%, rgba(56,189,248,.10), transparent 40%),
+                                  var(--bg);
+      color:var(--text); font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, "Helvetica Neue", Arial, "Apple Color Emoji", "Segoe UI Emoji";
+    }
+    a{color:inherit}
+    .container{max-width:1200px; padding:24px 20px 80px; margin:0 auto}
+
+    .header{position:sticky; top:0; z-index:20; backdrop-filter: blur(6px);
+      background: linear-gradient(to bottom, rgba(15,23,42,.95), rgba(15,23,42,.75) 60%, transparent);}
+    .header-inner{display:flex; gap:16px; align-items:center; justify-content:space-between; padding:16px 20px}
+    .title{font-size:clamp(20px, 3vw, 32px); font-weight:800; letter-spacing:.2px}
+    .title span{background: linear-gradient(90deg, var(--brand), var(--brand-2)); -webkit-background-clip:text; background-clip:text; color:transparent}
+
+    .controls{display:flex; flex-wrap:wrap; gap:10px; align-items:center}
+    .search{position:relative}
+    .search input{width:min(64vw, 320px); padding:12px 40px 12px 14px; border-radius:12px; border:1px solid #1f2937; background:#0b1220; color:var(--text); outline:none; box-shadow: inset 0 0 0 1px rgba(255,255,255,.02);}
+    .search svg{position:absolute; right:12px; top:50%; transform:translateY(-50%); opacity:.7}
+    .chips{display:flex; flex-wrap:wrap; gap:8px}
+    .chip{border:1px solid #1f2937; background:var(--chip); color:var(--text); padding:8px 12px; border-radius:999px; cursor:pointer; font-size:14px}
+    .chip[aria-pressed="true"]{background:var(--chip-active); border-color:#0ea5e9}
+    .count{font-size:13px; color:var(--muted)}
+
+    .gallery{column-gap:16px}
+    @media (min-width: 480px){.gallery{column-count:2}}
+    @media (min-width: 900px){.gallery{column-count:3}}
+    @media (min-width: 1200px){.gallery{column-count:4}}
+
+    .item{break-inside:avoid; margin:0 0 16px; display:block; border-radius:16px; overflow:hidden; background:#0b1220; border:1px solid #1f2937; box-shadow:var(--shadow); position:relative}
+    .item figure{margin:0}
+    .item img{width:100%; height:auto; display:block; filter:saturate(1.02); opacity:0; transition:opacity .4s ease}
+    .item img.loaded{opacity:1}
+    .item .badge{position:absolute; bottom:10px; right:10px; background:rgba(2,6,23,.7); border:1px solid #1f2937; padding:6px 10px; border-radius:999px; font-weight:700; font-size:13px}
+
+    .caption{padding:10px 12px; font-size:14px; color:var(--muted); display:flex; justify-content:space-between; gap:10px; align-items:center}
+    .tags{display:flex; gap:6px; flex-wrap:wrap}
+    .tag{font-size:12px; padding:3px 8px; border:1px solid #1f2937; border-radius:999px; color:#93c5fd}
+    .visually-hidden{position:absolute!important; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0}
+
+    .lightbox{position:fixed; inset:0; z-index:50; display:none; align-items:center; justify-content:center; background: rgba(2,6,23,.85)}
+    .lightbox.open{display:flex}
+    .lb-inner{max-width:min(92vw, 1200px); max-height:86vh; display:grid; grid-template-rows:auto 1fr auto; gap:10px}
+    .lb-toolbar{display:flex; align-items:center; justify-content:space-between; gap:10px}
+    .lb-title{font-weight:600}
+    .lb-actions{display:flex; gap:8px}
+    .btn{display:inline-flex; align-items:center; gap:6px; padding:8px 12px; background:#0b1220; border:1px solid #1f2937; border-radius:10px; cursor:pointer}
+    .btn:hover{border-color:#334155}
+    .btn.primary{background: #0c172a; border-color:#0ea5e9}
+    .lb-stage{position:relative; display:grid; place-items:center; background:#0b1220; border:1px solid #1f2937; border-radius:14px; overflow:hidden}
+    .lb-stage img, .lb-stage video{max-width:100%; max-height:80vh; width:auto; height:auto}
+    .nav{position:absolute; top:50%; transform:translateY(-50%); display:flex; align-items:center; justify-content:center; width:44px; height:44px; border-radius:999px; background:rgba(2,6,23,.6); border:1px solid #1f2937; cursor:pointer}
+    .nav:hover{background:rgba(2,6,23,.8)}
+    .nav.prev{left:10px}
+    .nav.next{right:10px}
+    .lb-footer{display:flex; justify-content:space-between; align-items:center; gap:8px; color:var(--muted)}
+
+    .to-top{position:fixed; right:18px; bottom:18px; z-index:30; display:none}
+    .to-top.show{display:inline-flex}
+
+    .nojs{margin:12px 0; padding:12px; background:#7c2d12; border:1px solid #b45309; border-radius:10px}
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="header-inner container" role="banner">
+      <div class="title" aria-label="Título del sitio">
+        <span>Álbum</span> Fotográfico
+      </div>
+      <div class="controls" role="search" aria-label="Búsqueda y filtros">
+        <div class="search">
+          <label class="visually-hidden" for="q">Buscar</label>
+          <input id="q" type="search" placeholder="Buscar por título o etiqueta…" autocomplete="off" />
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M21 21l-4.35-4.35M10.5 18a7.5 7.5 0 1 1 0-15 7.5 7.5 0 0 1 0 15Z" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+        </div>
+        <div class="chips" id="chips" role="toolbar" aria-label="Filtros de categoría"></div>
+        <div class="count" id="count" aria-live="polite"></div>
+      </div>
+    </div>
+  </div>
+
+  <main class="container" id="main">
+    <noscript><div class="nojs">Este álbum usa un poco de JavaScript para el filtrado y el visor. Activa JavaScript para una mejor experiencia.</div></noscript>
+    <section class="gallery" id="gallery" aria-label="Galería de fotos"></section>
+  </main>
+
+  <div class="lightbox" id="lightbox" aria-modal="true" role="dialog" aria-label="Visor de imagen">
+    <div class="lb-inner">
+      <div class="lb-toolbar">
+        <div class="lb-title" id="lbTitle">&nbsp;</div>
+        <div class="lb-actions">
+          <button class="btn" id="btnClose" title="Cerrar (Esc)">Cerrar ⨉</button>
+          <a class="btn primary" id="btnDownload" href="#" download>Descargar ⤓</a>
+        </div>
+      </div>
+      <div class="lb-stage">
+        <button class="nav prev" id="prev" aria-label="Anterior">◀</button>
+        <img id="lbImg" alt="" />
+        <video id="lbVideo" controls playsinline style="display:none"></video>
+        <button class="nav next" id="next" aria-label="Siguiente">▶</button>
+      </div>
+      <div class="lb-footer">
+        <div id="lbMeta"></div>
+        <div id="lbIndex"></div>
+      </div>
+    </div>
+  </div>
+
+  <button class="btn to-top" id="toTop" aria-label="Volver arriba">↑ Arriba</button>
+
+  <script>
+    // Placeholder SVG para tarjetas de video sin poster
+    const PLACEHOLDER_SVG = 'data:image/svg+xml;utf8,'+encodeURIComponent(`<?xml version="1.0" encoding="UTF-8"?><svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#0b1220"/><stop offset="1" stop-color="#111827"/></linearGradient></defs><rect width="100%" height="100%" fill="url(#g)"/><circle cx="600" cy="400" r="90" fill="none" stroke="#e5e7eb" stroke-width="8"/><polygon points="580,350 670,400 580,450" fill="#e5e7eb"/></svg>`);
+
+    // Datos (ahora acepta type:'image' | 'video' y poster para videos)
+    const IMAGENES = [
+      { type:'video', src: 'https://www.w3schools.com/html/mov_bbb.mp4', poster:'https://images.unsplash.com/photo-1501785888041-af3ef285b470?w=1400', alt:'Video de ejemplo', titulo:'Clip de muestra', etiquetas:['Video','Naturaleza'] },
+      { src: "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?w=1400", alt:"Montañas al amanecer", titulo:"Amanecer en la sierra", etiquetas:["Naturaleza","Viajes"] },
+      { src: "https://images.unsplash.com/photo-1520975916090-3105956dac38?w=1400", alt:"Pareja en boda", titulo:"Nuestra ceremonia", etiquetas:["Boda","Familia"] },
+      { src: "https://images.unsplash.com/photo-1470770903676-69b98201ea1c?w=1400", alt:"Playa con palmeras", titulo:"Tarde en la playa", etiquetas:["Viajes","Naturaleza"] },
+      { src: "https://images.unsplash.com/photo-1441123285228-1448e608f3d5?w=1400", alt:"Niña riendo", titulo:"Sobrina feliz", etiquetas:["Familia","Retratos"] },
+      { src: "https://images.unsplash.com/photo-1469474968028-56623f02e42e?w=1400", alt:"Bosque con neblina", titulo:"Sendero místico", etiquetas:["Naturaleza"] },
+      { src: "https://images.unsplash.com/photo-1519681393784-d120267933ba?w=1400", alt:"Cámara vintage", titulo:"Mi primera cámara", etiquetas:["Objetos"] },
+      { src: "https://images.unsplash.com/photo-1504198266285-165a3c7bb7b3?w=1400", alt:"Ciudad nocturna", titulo:"Ciudad en luces", etiquetas:["Viajes","Urbano"] },
+      { src: "https://images.unsplash.com/photo-1504197885-609741792ce7?w=1400", alt:"Mesa familiar", titulo:"Cena del domingo", etiquetas:["Familia"] },
+      { src: "https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?w=1400", alt:"Novia con ramo", titulo:"Sesión pre-boda", etiquetas:["Boda","Retratos"] },
+      { src: "https://images.unsplash.com/photo-1491553895911-0055eca6402d?w=1400", alt:"Atardecer urbano", titulo:"Azotea al atardecer", etiquetas:["Urbano","Viajes"] },
+      { src: "https://images.unsplash.com/photo-1469594800374-c0ee67ab9b91?w=1400", alt:"Flores de boda", titulo:"Detalles florales", etiquetas:["Boda","Objetos"] }
+    ];
+
+    const CATEGORIAS = ["Todas","Boda","Familia","Viajes","Naturaleza","Retratos","Urbano","Objetos","Video"];
+
+    const $gallery = document.getElementById('gallery');
+    const $chips = document.getElementById('chips');
+    const $count = document.getElementById('count');
+    const $q = document.getElementById('q');
+    const $toTop = document.getElementById('toTop');
+
+    const $lightbox = document.getElementById('lightbox');
+    const $lbImg = document.getElementById('lbImg');
+    const $lbVideo = document.getElementById('lbVideo');
+    const $lbTitle = document.getElementById('lbTitle');
+    const $lbMeta = document.getElementById('lbMeta');
+    const $lbIndex = document.getElementById('lbIndex');
+    const $btnClose = document.getElementById('btnClose');
+    const $btnDownload = document.getElementById('btnDownload');
+    const $prev = document.getElementById('prev');
+    const $next = document.getElementById('next');
+
+    let estado = { categoria: 'Todas', q: '', lista: IMAGENES.map((x,i)=>({ type: x.type || 'image', ...x, i })) };
+    let vistaActual = [];
+    let indiceLB = 0;
+
+    function renderChips(){
+      $chips.innerHTML = '';
+      CATEGORIAS.forEach(cat=>{
+        const b = document.createElement('button');
+        b.className = 'chip'; b.type = 'button'; b.textContent = cat;
+        b.setAttribute('aria-pressed', cat===estado.categoria ? 'true':'false');
+        b.addEventListener('click', ()=>{ estado.categoria = cat; renderChips(); aplicarFiltros(); });
+        $chips.appendChild(b);
+      });
+    }
+
+    const io = new IntersectionObserver(entries=>{
+      entries.forEach(entry=>{
+        if(entry.isIntersecting){
+          const img = entry.target; img.src = img.dataset.src; img.onload = ()=>img.classList.add('loaded');
+          io.unobserve(img);
+        }
+      })
+    }, { rootMargin: '200px' });
+
+    function renderGallery(lista){
+      $gallery.innerHTML = '';
+      lista.forEach(({type, src, poster, alt, titulo, etiquetas, i})=>{
+        const a = document.createElement('a');
+        a.href = '#'; a.className = 'item'; a.dataset.index = i;
+        a.setAttribute('aria-label', `${titulo}. Abrir visor`);
+        a.addEventListener('click', (e)=>{ e.preventDefault(); abrirLB(i); });
+
+        const fig = document.createElement('figure');
+        const img = document.createElement('img');
+        img.alt = alt || titulo || '';
+        img.loading = 'lazy';
+        img.dataset.src = (type === 'video') ? (poster || PLACEHOLDER_SVG) : src;
+        io.observe(img);
+        fig.appendChild(img);
+
+        const cap = document.createElement('figcaption');
+        cap.className = 'caption';
+        const left = document.createElement('div'); left.textContent = titulo || '';
+        const right = document.createElement('div'); right.className = 'tags';
+        (etiquetas||[]).forEach(t=>{ const s = document.createElement('span'); s.className = 'tag'; s.textContent = t; right.appendChild(s); });
+        cap.appendChild(left); cap.appendChild(right);
+
+        a.appendChild(fig); a.appendChild(cap);
+
+        if(type === 'video'){ const badge = document.createElement('div'); badge.className='badge'; badge.textContent='▶ Video'; a.appendChild(badge); }
+
+        $gallery.appendChild(a);
+      });
+
+      $count.textContent = `${lista.length} elemento${lista.length===1?'':'s'}`;
+      vistaActual = lista.map(x=>x.i);
+    }
+
+    function aplicarFiltros(){
+      const q = estado.q.trim().toLowerCase();
+      const cat = estado.categoria;
+      const filtrada = estado.lista.filter(({titulo, etiquetas})=>{
+        const coincideCat = (cat==='Todas') || (etiquetas||[]).includes(cat);
+        const cadena = `${titulo||''} ${(etiquetas||[]).join(' ')}`.toLowerCase();
+        const coincideQ = !q || cadena.includes(q);
+        return coincideCat && coincideQ;
+      });
+      renderGallery(filtrada);
+    }
+
+    function abrirLB(indiceReal){
+      const i = vistaActual.indexOf(indiceReal);
+      indiceLB = i >= 0 ? i : 0;
+      actualizarLB();
+      $lightbox.classList.add('open');
+      document.body.style.overflow = 'hidden';
+    }
+
+    function cerrarLB(){
+      $lightbox.classList.remove('open');
+      document.body.style.overflow = '';
+      if(!$lbVideo.paused){ $lbVideo.pause(); }
+      $lbVideo.removeAttribute('src');
+      $lbVideo.load();
+    }
+
+    function actualizarLB(){
+      if(vistaActual.length===0){ cerrarLB(); return; }
+      const real = vistaActual[indiceLB];
+      const foto = estado.lista.find(x=>x.i===real);
+      if(!foto) return;
+
+      if(foto.type === 'video'){
+        $lbImg.style.display = 'none';
+        $lbVideo.style.display = 'block';
+        $lbVideo.poster = foto.poster || '';
+        if(!$lbVideo.paused){ $lbVideo.pause(); }
+        $lbVideo.src = foto.src;
+        $lbVideo.load();
+      } else {
+        $lbVideo.pause();
+        $lbVideo.style.display = 'none';
+        $lbVideo.removeAttribute('src');
+        $lbVideo.load();
+        $lbImg.style.display = 'block';
+        $lbImg.src = foto.src;
+        $lbImg.alt = foto.alt || foto.titulo || '';
+      }
+
+      $lbTitle.textContent = foto.titulo || '';
+      $lbMeta.textContent = (foto.etiquetas||[]).join(' · ');
+      $lbIndex.textContent = `${indiceLB+1} / ${vistaActual.length}`;
+      $btnDownload.href = foto.src;
+
+      const vecinos = [vistaActual[indiceLB-1], vistaActual[indiceLB+1]]
+        .map(idx => estado.lista.find(x=>x.i===idx)).filter(Boolean);
+      vecinos.filter(v=>v.type !== 'video').forEach(v=>{ const i = new Image(); i.src = v.src; });
+    }
+
+    $btnClose.addEventListener('click', cerrarLB);
+    $prev.addEventListener('click', ()=>{ indiceLB = (indiceLB-1+vistaActual.length)%vistaActual.length; actualizarLB(); });
+    $next.addEventListener('click', ()=>{ indiceLB = (indiceLB+1)%vistaActual.length; actualizarLB(); });
+    $lightbox.addEventListener('click', (e)=>{ if(e.target===e.currentTarget) cerrarLB(); });
+    document.addEventListener('keydown', (e)=>{
+      if(!$lightbox.classList.contains('open')) return;
+      if(e.key==='Escape') cerrarLB();
+      if(e.key==='ArrowLeft') $prev.click();
+      if(e.key==='ArrowRight') $next.click();
+    });
+
+    $q.addEventListener('input', (e)=>{ estado.q = e.target.value; aplicarFiltros(); });
+
+    window.addEventListener('scroll', ()=>{
+      if(window.scrollY > 400) $toTop.classList.add('show'); else $toTop.classList.remove('show');
+    });
+    $toTop.addEventListener('click', ()=> window.scrollTo({top:0, behavior:'smooth'}));
+
+    renderChips();
+    aplicarFiltros();
+  </script>
+
+  <!--
+   Consejos para videos
+   - Formato más compatible: MP4 (H.264 + AAC).
+   - Usa `poster` para miniatura en la galería (mejor UX).
+   - Mantén tamaños moderados (por ej. 720p/1080p) para no ralentizar la página.
+   - Para alojar videos grandes, considera YouTube/Vimeo e inserta enlaces como tipo 'externo' (puedo habilitarlo si lo necesitas).
+  -->
+</body>
+</html>
