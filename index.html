@@ -114,7 +114,8 @@
       { type:'video', src:'video/mi_clip.mp4', poster:'img/mi_clip_poster.jpg', alt:'Video local', titulo:'Clip de ejemplo', etiquetas:['Video','Boda'] },
       { src:'img/foto1.jpg', alt:'Ejemplo foto 1', titulo:'Foto local 1', etiquetas:['Familia'] },
       { src:'img/foto2.jpg', alt:'Ejemplo foto 2', titulo:'Foto local 2', etiquetas:['Viajes','Naturaleza'] }
-    ];
+    ,
+  { type:'embed', provider:'youtube', src:'https://www.youtube.com/watch?v=qLgjXRsVRLE', titulo:'Video de YouTube', etiquetas:['Video','YouTube'] }];
     const CATEGORIAS = ['Todas','Boda','Familia','Viajes','Naturaleza','Retratos','Urbano','Objetos','Video'];
 
     const $gallery = document.getElementById('gallery');
@@ -266,5 +267,43 @@
 
     renderChips(); aplicarFiltros();
   </script>
+<script>
+
+/* === Soporte de YouTube/Vimeo (lightbox con iframe) === */
+(function(){
+  function ytId(url){ try{ const u=new URL(url); if(u.hostname.includes('youtu.be')) return u.pathname.slice(1); if(u.hostname.includes('youtube.com')) return u.searchParams.get('v') || u.pathname.split('/').pop(); }catch(e){} return url; }
+  function ytThumb(id){ return "https://img.youtube.com/vi/"+id+"/hqdefault.jpg"; }
+  function ytEmbed(id){ return "https://www.youtube.com/embed/"+id+"?autoplay=1&rel=0"; }
+  function vimeoId(url){ try{ const u=new URL(url); return u.pathname.split('/').filter(Boolean).pop(); }catch(e){} return url; }
+  function vimeoEmbed(id){ return "https://player.vimeo.com/video/"+id+"?autoplay=1"; }
+  var stage=document.querySelector('.lb-stage'), ifr=document.getElementById('lbEmbed');
+  if(stage && !ifr){
+    ifr=document.createElement('iframe'); ifr.id='lbEmbed'; ifr.allow='accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share'; ifr.allowFullscreen=true;
+    ifr.style.display='none'; ifr.style.border='0'; ifr.style.maxWidth='100%'; ifr.style.maxHeight='80vh'; ifr.style.width='100%'; ifr.style.height='80vh';
+    stage.appendChild(ifr);
+  }
+  window.__album_open_item = function(item){
+    var img=document.getElementById('lbImg'); var vid=document.getElementById('lbVideo'); var ifr=document.getElementById('lbEmbed'); if(!ifr) return false;
+    if(img) img.style.display='none';
+    if(vid){ try{vid.pause();}catch(e){} vid.style.display='none'; vid.removeAttribute('src'); if(vid.load) try{vid.load();}catch(e){} }
+    ifr.style.display='none'; ifr.src='about:blank';
+    if(item && item.type==='embed'){
+      var src=item.src;
+      if(item.provider==='youtube'){ var id=item.id||ytId(item.src); src=ytEmbed(id); }
+      if(item.provider==='vimeo'){ var id2=item.id||vimeoId(item.src); src=vimeoEmbed(id2); }
+      ifr.src=src; ifr.style.display='block'; return true;
+    }
+    return false;
+  };
+  window.__album_card_poster = function(item){
+    if(item && item.type==='embed'){
+      if(item.provider==='youtube'){ var id=item.id||ytId(item.src); return item.poster||ytThumb(id); }
+      if(item.provider==='vimeo'){ return item.poster||''; }
+    }
+    return item && item.src;
+  };
+})();/* === fin soporte embeds === */
+
+</script>
 </body>
 </html>
