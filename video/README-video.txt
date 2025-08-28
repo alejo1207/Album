@@ -1,1 +1,0 @@
-Coloca aquí tus videos (MP4 recomendado: H.264 + AAC). Puedes borrar este archivo.
