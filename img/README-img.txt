@@ -1,1 +1,0 @@
-Coloca aquí tus fotos. Puedes borrar este archivo.
